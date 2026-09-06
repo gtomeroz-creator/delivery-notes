@@ -297,11 +297,13 @@ table.pv th{background:var(--water-tint);color:var(--water-deep);font-size:13px}
       <div class="row">
         <div class="f"><label for="sDriver">שם הנהג</label><input id="sDriver"></div>
         <div class="f"><label for="sVehicle">מס׳ רכב</label><input id="sVehicle"></div>
-        <div class="f"><label for="sPrefix">קידומת מספור</label><input id="sPrefix" placeholder="למשל 04" maxlength="6"></div>
-        <div class="f"><label for="sNext">המספר הבא</label><input id="sNext" inputmode="numeric"></div>
       </div>
-      <p class="hint">לכל מכשיר יש לקבוע קידומת שונה, כדי שלא ייווצרו שני מספרים זהים אצל נהגים שונים.</p>
-      <div class="f full" style="margin-top:10px"><label for="sMaterials">סוגי חומר לבחירה מהירה</label>
+      <div style="background:#E4F0F2;padding:11px 12px;border-radius:8px;margin-bottom:12px;font-size:14px">
+        <div style="color:#084B58;font-weight:600;margin-bottom:4px">חתימה ייחודית של המכשיר הזה:</div>
+        <div id="sDeviceId" style="font-family:monospace;font-size:16px;font-weight:700;direction:ltr;letter-spacing:1px">—</div>
+        <div style="color:#4A6068;font-size:12.5px;margin-top:4px">חתימה זו משמשת בכל מספר תעודה כדי למנוע כפילויות כשמספר אנשים עובדים במקביל.</div>
+      </div>
+      <div class="f full"><label for="sMaterials">סוגי חומר לבחירה מהירה</label>
         <textarea id="sMaterials" placeholder="שורה לכל סוג חומר"></textarea></div>
       <div class="btnrow"><button class="btn wide" onclick="saveSettings()">שמירת ההגדרות</button></div>
     </div>
@@ -383,7 +385,8 @@ function setMeta(k,v){
 
 /* =============== state =============== */
 const DEF_MATERIALS=['בוצה','מי שפכים','סחף/חול','פסולת בניין','מים מותפלים','אחר'];
-let settings={driver:'',vehicle:'',prefix:'01',next:1,materials:DEF_MATERIALS.slice()};
+let settings={driver:'',vehicle:'',deviceId:'',materials:DEF_MATERIALS.slice()};
+let lastSerialInfo={date:'',hour:'',count:0};
 let photos=[];        // [{id,data}]
 let docsCache=[];
 let currentSerial='';
@@ -396,10 +399,19 @@ function toast(msg,bad){
   const t=$('toast'); t.textContent=msg; t.className='toast on'+(bad?' bad':'');
   clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',2600);
 }
-function pad(n){ return String(n).padStart(4,'0'); }
-function makeSerial(){ return (settings.prefix||'01')+'-'+pad(settings.next||1); }
+function pad(n,len){return String(n).padStart(len||4,'0');}
 function todayISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function makeSerial(){
+  const now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0'),d=String(now.getDate()).padStart(2,'0'),h=String(now.getHours()).padStart(2,'0');
+  const date=y+m+d, hour=h;
+  const last=lastSerialInfo||{date:'',hour:'',count:0};
+  let count=0;
+  if(last.date===date && last.hour===hour){ count=last.count+1; }
+  else { count=1; }
+  lastSerialInfo={date,hour,count};
+  return date+'-'+hour+'-'+settings.deviceId+'-'+pad(count,4);
+}
 function heDate(iso){ if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -567,8 +579,6 @@ async function saveDoc(share){
   if(!d.signature){ toast('חסרה חתימה',true); cv.scrollIntoView({block:'center'}); return; }
   try{
     await putDoc(d);
-    const isNew = !docsCache.some(x=>x.serial===d.serial);
-    if(isNew){ settings.next=(settings.next|0)+1; await setMeta('settings',settings); }
     await setMeta('draft',null);
     docsCache=await allDocs();
     buildSuggestLists();
@@ -779,19 +789,17 @@ async function wipe(){
 
 /* =============== settings =============== */
 function fillSettings(){
-  $('sDriver').value=settings.driver||''; $('sVehicle').value=settings.vehicle||'';
-  $('sPrefix').value=settings.prefix||'01'; $('sNext').value=settings.next||1;
+  $('sDriver').value=settings.driver||''; 
+  $('sVehicle').value=settings.vehicle||'';
   $('sMaterials').value=(settings.materials||DEF_MATERIALS).join('\n');
+  $('sDeviceId').textContent=settings.deviceId || '(לא הגדר עדיין)';
 }
 async function saveSettings(){
   settings.driver=$('sDriver').value.trim();
   settings.vehicle=$('sVehicle').value.trim();
-  settings.prefix=($('sPrefix').value.trim()||'01');
-  settings.next=Math.max(1,parseInt($('sNext').value,10)||1);
   settings.materials=$('sMaterials').value.split('\n').map(s=>s.trim()).filter(Boolean);
   if(!settings.materials.length) settings.materials=DEF_MATERIALS.slice();
   await setMeta('settings',settings);
-  if(!docsCache.some(d=>d.serial===currentSerial)){ currentSerial=makeSerial(); $('serial').textContent=currentSerial; }
   if(!$('driver').value) $('driver').value=settings.driver;
   if(!$('vehicle').value) $('vehicle').value=settings.vehicle;
   toast('ההגדרות נשמרו');
@@ -828,6 +836,13 @@ function buildSuggestLists(){
 (async function boot(){
   await openDB();
   settings=Object.assign(settings,await getMeta('settings',{}));
+  
+  // Generate deviceId on first load
+  if(!settings.deviceId){
+    settings.deviceId=pad(Math.floor(Math.random()*10000),4);
+    await setMeta('settings',settings);
+  }
+  
   docsCache=await allDocs();
   fillSettings();
   initSig();
