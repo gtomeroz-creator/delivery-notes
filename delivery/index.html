@@ -560,10 +560,18 @@ function clearDraft(){
 function newForm(){
   currentSerial=makeSerial(); $('serial').textContent=currentSerial;
   ['customer','mobile','address','signerName','signerId','signerRole','notes'].forEach(k=>$(k).value='');
-  $('date').value=todayISO(); $('time').value=nowHM();
-  $('driver').value=settings.driver||''; $('vehicle').value=settings.vehicle||'';
-  $('items').innerHTML=''; addRow(); addRow();
-  photos=[]; renderThumbs(); clearSig(); sigDirty=false; $('sighint').style.display='';
+  $('date').value=todayISO(); 
+  $('time').value=nowHM();
+  $('driver').value=settings.driver||''; 
+  $('vehicle').value=settings.vehicle||'';
+  $('items').innerHTML=''; 
+  addRow(); 
+  addRow();
+  photos=[]; 
+  renderThumbs(); 
+  clearSig(); 
+  sigDirty=false; 
+  $('sighint').style.display='';
   buildSuggestLists();
   window.scrollTo(0,0);
 }
@@ -716,22 +724,29 @@ function quick(k){
   else if(k===1){ f=new Date(now.getFullYear(),now.getMonth()-1,1); t=new Date(now.getFullYear(),now.getMonth(),0); }
   else if(k===2){ f=new Date(now.getTime()-6*864e5); t=now; }
   else { f=new Date(2000,0,1); t=new Date(now.getFullYear()+5,0,1); }
-  $('from').value=z(f); $('to').value=z(t);
+  const fromVal=z(f), toVal=z(t);
+  $('from').value=fromVal; 
+  $('to').value=toVal;
   document.querySelectorAll('#v-exp .chip').forEach((c,i)=>c.setAttribute('aria-pressed',String(i===k)));
-  renderExp();
+  setTimeout(()=>renderExp(),50);
 }
 async function inRange(){
   docsCache=await allDocs();
-  const f=$('from').value,t=$('to').value;
-  return docsCache.filter(d=>(!f||d.date>=f)&&(!t||d.date<=t)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  let f=$('from').value,t=$('to').value;
+  // Ensure dates are set - if empty, use extreme dates
+  if(!f) f='1900-01-01';
+  if(!t) t='2099-12-31';
+  return docsCache.filter(d=>(d.date&&d.date>=f&&d.date<=t)||!d.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
 }
 async function renderExp(){
   const l=await inRange();
+  console.log('inRange returned',l.length,'documents');
   const q=l.reduce((s,d)=>s+d.items.reduce((x,i)=>x+(parseFloat(i.qty)||0),0),0);
   $('expCount').textContent = l.length ? l.length+' תעודות בתקופה · סה״כ '+(Math.round(q*100)/100)+' מ״ק' : 'אין תעודות בתקופה שנבחרה';
 }
 async function exportBundle(){
   const l=await inRange();
+  console.log('exportBundle: exporting',l.length,'documents');
   if(!l.length){ toast('אין תעודות בתקופה שנבחרה',true); return; }
   const total=l.reduce((s,d)=>s+d.items.reduce((x,i)=>x+(parseFloat(i.qty)||0),0),0);
   const cover=`<div class="sheet"><div class="hd"><div><div class="org">תאגיד הרי נצרת</div><div class="sub">מפעלי מים וביוב בע״מ</div></div>
@@ -745,15 +760,18 @@ async function exportBundle(){
     <title>ריכוז תעודות משלוח</title>${sheetCSS()}</head><body>${cover}${l.map(d=>docHTML(d,false)).join('')}</body></html>`;
   const name='ריכוז תעודות '+$('from').value+' עד '+$('to').value+'.html';
   shareFile(name,html,'text/html','ריכוז תעודות משלוח — '+l.length+' תעודות');
+  toast(l.length+' תעודות נשלחו');
 }
 async function exportCsv(){
   const l=await inRange();
+  console.log('exportCsv: exporting',l.length,'documents');
   if(!l.length){ toast('אין תעודות בתקופה שנבחרה',true); return; }
   const head=['מספר תעודה','תאריך','שעת יציאה','שם לקוח','נייד','אתר הפינוי','שם הנהג','מס׳ רכב','מס״ד','סוג החומר','כמות (מ״ק)','מס׳ אמבטיה','אישור המזמין','ת״ז/טלפון','תפקיד','הערות','מספר תמונות'];
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   const lines=[head.map(q).join(',')];
   l.forEach(d=>d.items.forEach((it,i)=>lines.push([d.serial,heDate(d.date),d.time,d.customer,d.mobile,d.address,d.driver,d.vehicle,i+1,it.material,it.qty,it.tub,d.signerName,d.signerId,d.signerRole,d.notes,(d.photos||[]).length].map(q).join(','))));
   shareFile('תעודות משלוח '+$('from').value+' עד '+$('to').value+'.csv','\uFEFF'+lines.join('\r\n'),'text/csv','ריכוז תעודות משלוח');
+  toast(l.length+' תעודות נשלחו (CSV)');
 }
 async function shareSummary(){
   const l=await inRange();
