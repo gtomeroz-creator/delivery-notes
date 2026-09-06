@@ -186,18 +186,10 @@ table.pv th{background:var(--water-tint);color:var(--water-deep);font-size:13px}
       <div class="row">
         <div class="f req"><label for="date">תאריך</label><input type="date" id="date"></div>
         <div class="f"><label for="time">שעת יציאה</label><input type="time" id="time"></div>
-        <div class="f req"><label for="customer">שם לקוח / אתר</label><input id="customer" placeholder="למשל: מט״ש רני סוללים"></div>
-        <div class="f"><label for="locality">יישוב</label>
-          <select id="locality">
-            <option value="">בחירה</option>
-            <option>נצרת</option><option>ריינה</option><option>יפיע</option><option>אכסאל</option><option>עילוט</option><option>אחר</option>
-          </select>
-        </div>
-        <div class="f"><label for="phone">טלפון</label><input id="phone" type="tel" inputmode="tel"></div>
-        <div class="f"><label for="mobile">נייד</label><input id="mobile" type="tel" inputmode="tel"></div>
-        <div class="f full"><label for="address">כתובת</label><input id="address"></div>
-        <div class="f"><label for="order">לפי הזמנה מס׳</label><input id="order" inputmode="numeric"></div>
-        <div class="f"><label for="weigh">תעודת שקילה מס׳</label><input id="weigh" inputmode="numeric"></div>
+        <div class="f req"><label for="customer">שם לקוח / אתר</label><input id="customer" list="customerlist" placeholder="למשל: מט״ש רני סוללים"></div>
+        <div class="f"><label for="mobile">נייד</label><input id="mobile" list="mobilelist" type="tel" inputmode="tel"></div>
+        <div class="f full"><label for="address">אתר הפינוי (לאן מפונה)</label><input id="address"></div>
+
       </div>
     </div>
   </div>
@@ -206,8 +198,8 @@ table.pv th{background:var(--water-tint);color:var(--water-deep);font-size:13px}
     <h2>נהג ורכב</h2>
     <div class="body">
       <div class="row">
-        <div class="f req"><label for="driver">שם הנהג</label><input id="driver"></div>
-        <div class="f"><label for="vehicle">מס׳ רכב</label><input id="vehicle" inputmode="numeric"></div>
+        <div class="f req"><label for="driver">שם הנהג</label><input id="driver" list="driverlist"></div>
+        <div class="f"><label for="vehicle">מס׳ רכב</label><input id="vehicle" list="vehiclelist" inputmode="numeric"></div>
       </div>
     </div>
   </div>
@@ -238,12 +230,12 @@ table.pv th{background:var(--water-tint);color:var(--water-deep);font-size:13px}
   </div>
 
   <div class="card">
-    <h2>הזדהות וחתימה</h2>
+    <h2>אישור המזמין</h2>
     <div class="body">
       <div class="row">
-        <div class="f req"><label for="signerName">שם מלא של החותם</label><input id="signerName"></div>
-        <div class="f"><label for="signerId">ת״ז / טלפון</label><input id="signerId" inputmode="numeric"></div>
-        <div class="f full"><label for="signerRole">תפקיד / מטעם</label><input id="signerRole" placeholder="למשל: מפעיל מט״ש, קבלן, נציג התאגיד"></div>
+        <div class="f req"><label for="signerName">שם מלא</label><input id="signerName" list="signerlist"></div>
+        <div class="f"><label for="signerId">טלפון / ת״ז</label><input id="signerId" list="mobilelist" type="tel" inputmode="tel"></div>
+        <div class="f full"><label for="signerRole">תפקיד / גוף מטעם</label><input id="signerRole" placeholder="למשל: מפעיל מט״ש, קבלן, נציג התאגיד"></div>
       </div>
       <label>חתימה</label>
       <div class="sigwrap"><canvas id="sig"></canvas><div class="sighint" id="sighint">חתימה באצבע בתוך המסגרת</div></div>
@@ -523,9 +515,8 @@ function formToObj(){
   return {
     serial:currentSerial,
     date:$('date').value, time:$('time').value,
-    customer:$('customer').value.trim(), locality:$('locality').value,
-    phone:$('phone').value.trim(), mobile:$('mobile').value.trim(), address:$('address').value.trim(),
-    order:$('order').value.trim(), weigh:$('weigh').value.trim(),
+    customer:$('customer').value.trim(), 
+    mobile:$('mobile').value.trim(), address:$('address').value.trim(),
     driver:$('driver').value.trim(), vehicle:$('vehicle').value.trim(),
     items:readItems(), photos:photos.slice(),
     signerName:$('signerName').value.trim(), signerId:$('signerId').value.trim(), signerRole:$('signerRole').value.trim(),
@@ -535,7 +526,7 @@ function formToObj(){
 }
 function objToForm(d){
   currentSerial=d.serial||makeSerial(); $('serial').textContent=currentSerial;
-  ['date','time','customer','locality','phone','mobile','address','order','weigh','driver','vehicle','signerName','signerId','signerRole','notes']
+  ['date','time','customer','mobile','address','driver','vehicle','signerName','signerId','signerRole','notes']
     .forEach(k=>{ $(k).value=d[k]||''; });
   $('items').innerHTML='';
   (d.items&&d.items.length?d.items:[{}]).forEach(it=>addRow(it.material,it.qty,it.tub));
@@ -556,11 +547,12 @@ function clearDraft(){
 }
 function newForm(){
   currentSerial=makeSerial(); $('serial').textContent=currentSerial;
-  ['customer','phone','mobile','address','order','weigh','signerName','signerId','signerRole','notes'].forEach(k=>$(k).value='');
-  $('locality').value=''; $('date').value=todayISO(); $('time').value=nowHM();
+  ['customer','mobile','address','signerName','signerId','signerRole','notes'].forEach(k=>$(k).value='');
+  $('date').value=todayISO(); $('time').value=nowHM();
   $('driver').value=settings.driver||''; $('vehicle').value=settings.vehicle||'';
   $('items').innerHTML=''; addRow(); addRow();
   photos=[]; renderThumbs(); clearSig(); sigDirty=false; $('sighint').style.display='';
+  buildSuggestLists();
   window.scrollTo(0,0);
 }
 
@@ -579,6 +571,7 @@ async function saveDoc(share){
     if(isNew){ settings.next=(settings.next|0)+1; await setMeta('settings',settings); }
     await setMeta('draft',null);
     docsCache=await allDocs();
+    buildSuggestLists();
     toast('תעודה '+d.serial+' נשמרה');
     if(share) shareDoc(d);
     newForm();
@@ -597,10 +590,8 @@ function docHTML(d,standalone){
     </div>
     <table class="meta">
       <tr><td><b>תאריך:</b> ${heDate(d.date)}</td><td><b>שעת יציאה:</b> ${esc(d.time)}</td></tr>
-      <tr><td><b>שם לקוח:</b> ${esc(d.customer)}</td><td><b>יישוב:</b> ${esc(d.locality)}</td></tr>
-      <tr><td><b>טלפון:</b> ${esc(d.phone)}</td><td><b>נייד:</b> ${esc(d.mobile)}</td></tr>
-      <tr><td colspan="2"><b>כתובת:</b> ${esc(d.address)}</td></tr>
-      <tr><td><b>לפי הזמנה מס׳:</b> ${esc(d.order)}</td><td><b>תעודת שקילה מס׳:</b> ${esc(d.weigh)}</td></tr>
+      <tr><td><b>שם לקוח:</b> ${esc(d.customer)}</td><td><b>נייד:</b> ${esc(d.mobile)}</td></tr>
+      <tr><td colspan="2"><b>אתר הפינוי:</b> ${esc(d.address)}</td></tr>
       <tr><td><b>שם הנהג:</b> ${esc(d.driver)}</td><td><b>מס׳ רכב:</b> ${esc(d.vehicle)}</td></tr>
     </table>
     <table class="items">
@@ -674,13 +665,13 @@ async function renderHist(){
   docsCache=await allDocs();
   const q=($('q').value||'').trim();
   const list=docsCache
-    .filter(d=>!q || [d.serial,d.customer,d.driver,d.vehicle,d.locality].join(' ').includes(q))
+    .filter(d=>!q || [d.serial,d.customer,d.driver,d.vehicle].join(' ').includes(q))
     .sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
   const box=$('histList');
   if(!list.length){ box.innerHTML='<div class="empty"><b>אין תעודות שמורות</b>כל תעודה שתישמר תופיע כאן ותישאר זמינה במכשיר גם בלי רשת.</div>'; return; }
   box.innerHTML=list.map(d=>`<button class="item" onclick="openDoc('${esc(d.serial)}')">
     <div class="top"><span class="sn">${esc(d.serial)}</span><span class="dt">${heDate(d.date)} ${esc(d.time)}</span></div>
-    <div class="cust">${esc(d.customer)}${d.locality?' · '+esc(d.locality):''}</div>
+    <div class="cust">${esc(d.customer)}</div>
     <div class="meta">${esc(d.driver)}${d.vehicle?' · רכב '+esc(d.vehicle):''} · ${d.items.length} שורות${d.photos&&d.photos.length?' · '+d.photos.length+' תמונות':''}</div>
   </button>`).join('');
 }
@@ -737,8 +728,8 @@ async function exportBundle(){
     <div class="ttl">ריכוז תעודות משלוח</div></div>
     <table class="meta"><tr><td><b>תקופה:</b> ${heDate($('from').value)} — ${heDate($('to').value)}</td><td><b>מספר תעודות:</b> ${l.length}</td></tr>
     <tr><td><b>סה״כ כמות:</b> ${Math.round(total*100)/100} מ״ק</td><td><b>הופק בתאריך:</b> ${heDate(todayISO())}</td></tr></table>
-    <table class="items"><tr><th>מס׳ תעודה</th><th>תאריך</th><th>לקוח</th><th>נהג</th><th>כמות</th></tr>
-    ${l.map(d=>`<tr><td>${esc(d.serial)}</td><td>${heDate(d.date)}</td><td>${esc(d.customer)}</td><td>${esc(d.driver)}</td><td>${d.items.reduce((x,i)=>x+(parseFloat(i.qty)||0),0)}</td></tr>`).join('')}
+    <table class="items"><tr><th>מס׳ תעודה</th><th>תאריך</th><th>לקוח</th><th>נהג</th><th>רכב</th><th>כמות</th></tr>
+    ${l.map(d=>`<tr><td>${esc(d.serial)}</td><td>${heDate(d.date)}</td><td>${esc(d.customer)}</td><td>${esc(d.driver)}</td><td>${esc(d.vehicle)}</td><td>${d.items.reduce((x,i)=>x+(parseFloat(i.qty)||0),0)}</td></tr>`).join('')}
     </table></div>`;
   const html=`<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>ריכוז תעודות משלוח</title>${sheetCSS()}</head><body>${cover}${l.map(d=>docHTML(d,false)).join('')}</body></html>`;
@@ -748,10 +739,10 @@ async function exportBundle(){
 async function exportCsv(){
   const l=await inRange();
   if(!l.length){ toast('אין תעודות בתקופה שנבחרה',true); return; }
-  const head=['מספר תעודה','תאריך','שעת יציאה','יישוב','שם לקוח','טלפון','נייד','כתובת','הזמנה מס׳','שקילה מס׳','שם הנהג','מס׳ רכב','מס״ד','סוג החומר','כמות (מ״ק)','מס׳ אמבטיה','שם החותם','ת״ז/טלפון','תפקיד','הערות','מספר תמונות'];
+  const head=['מספר תעודה','תאריך','שעת יציאה','שם לקוח','נייד','אתר הפינוי','שם הנהג','מס׳ רכב','מס״ד','סוג החומר','כמות (מ״ק)','מס׳ אמבטיה','אישור המזמין','ת״ז/טלפון','תפקיד','הערות','מספר תמונות'];
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   const lines=[head.map(q).join(',')];
-  l.forEach(d=>d.items.forEach((it,i)=>lines.push([d.serial,heDate(d.date),d.time,d.locality,d.customer,d.phone,d.mobile,d.address,d.order,d.weigh,d.driver,d.vehicle,i+1,it.material,it.qty,it.tub,d.signerName,d.signerId,d.signerRole,d.notes,(d.photos||[]).length].map(q).join(','))));
+  l.forEach(d=>d.items.forEach((it,i)=>lines.push([d.serial,heDate(d.date),d.time,d.customer,d.mobile,d.address,d.driver,d.vehicle,i+1,it.material,it.qty,it.tub,d.signerName,d.signerId,d.signerRole,d.notes,(d.photos||[]).length].map(q).join(','))));
   shareFile('תעודות משלוח '+$('from').value+' עד '+$('to').value+'.csv','\uFEFF'+lines.join('\r\n'),'text/csv','ריכוז תעודות משלוח');
 }
 async function shareSummary(){
@@ -806,6 +797,33 @@ async function saveSettings(){
   toast('ההגדרות נשמרו');
 }
 
+/* =============== smart autofill =============== */
+function buildSuggestLists(){
+  const unique=(arr)=>[...new Set(arr)].filter(x=>x).sort();
+  const customers=unique(docsCache.map(d=>d.customer));
+  const drivers=unique(docsCache.map(d=>d.driver));
+  const vehicles=unique(docsCache.map(d=>d.vehicle));
+  const mobiles=unique(docsCache.map(d=>d.mobile));
+  const signers=unique(docsCache.map(d=>d.signerName));
+  
+  const html=(opts)=>opts.map(v=>`<option value="${esc(v)}"></option>`).join('');
+  
+  let dl=$('customerlist'); if(!dl){ dl=document.createElement('datalist'); dl.id='customerlist'; document.body.appendChild(dl); }
+  dl.innerHTML=html(customers);
+  
+  dl=$('driverlist'); if(!dl){ dl=document.createElement('datalist'); dl.id='driverlist'; document.body.appendChild(dl); }
+  dl.innerHTML=html(drivers);
+  
+  dl=$('vehiclelist'); if(!dl){ dl=document.createElement('datalist'); dl.id='vehiclelist'; document.body.appendChild(dl); }
+  dl.innerHTML=html(vehicles);
+  
+  dl=$('mobilelist'); if(!dl){ dl=document.createElement('datalist'); dl.id='mobilelist'; document.body.appendChild(dl); }
+  dl.innerHTML=html(mobiles);
+  
+  dl=$('signerlist'); if(!dl){ dl=document.createElement('datalist'); dl.id='signerlist'; document.body.appendChild(dl); }
+  dl.innerHTML=html(signers);
+}
+
 /* =============== boot =============== */
 (async function boot(){
   await openDB();
@@ -819,6 +837,7 @@ async function saveSettings(){
     if(!draft.date) $('date').value=todayISO();
     toast('הטופס האחרון שוחזר');
   } else { newForm(); }
+  buildSuggestLists();
   quick(0);
   $('storeInfo').textContent = memMode
     ? 'שמירה מקומית אינה זמינה בדפדפן הזה — הנתונים יימחקו בסגירת הדף. יש לפתוח את הקובץ מכתובת אינטרנט רגילה.'
